@@ -52,7 +52,7 @@ BINFILESMC  = $(BIN_DIR)/test1.mim.addr.mc
 BINFILESMC += $(BIN_DIR)/song.mod.addr.mc
 
 $(BIN_DIR)/test1.mim: $(BIN_DIR)/test1.raw
-	$(MEGAIMAGE) 512 400 1 $(BIN_DIR)/test1.raw $(BIN_DIR)/test1.mim
+	$(MEGAIMAGE) 512 328 1 $(BIN_DIR)/test1.raw $(BIN_DIR)/test1.mim
 
 $(EXE_DIR)/boot.o:	$(SRC_DIR)/boot.s \
 					$(SRC_DIR)/main.s \

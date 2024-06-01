@@ -4,8 +4,9 @@
 
 .define imgscreen				$a000	; size = 80*50*2 = $1f40
 
-.define imgdata					$21000  ; 320*200*3 = $2ee00
-.define moddata					$10000
+.define moddata					$10000  ; $11860
+.define imgdata					$22000  ; 512*328 = $29000
+.define endofdata				$4b000
 
 .define emptychar				$ff80
 .define screen1					$b000
@@ -14,8 +15,6 @@
 
 .define imgwidth				512
 .define imgxoffset				96-64		; (512-320)/2
-
-.define yoffset					32
 
 ; ----------------------------------------------------------------------------------------------------
 
@@ -467,7 +466,9 @@ img_render_irq
 		sta $d020
 
 		; calculate red x offset
+		clc
 		lda frame
+		adc #32
 		asl
 		tay
 		lda sine,y
@@ -482,31 +483,33 @@ img_render_irq
 
 		; red left
 		clc
-		lda lumaleftlo+yoffset,y
+		lda lumaleftlo,y
 		adc xoffsetred
 		sta imgrucr+0
-		lda lumaleftmid+yoffset,y
+		lda lumaleftmid,y
 		adc #0
 		sta imgrucr+1
-		lda lumalefthi+yoffset,y
+		lda lumalefthi,y
 		adc #0
 		sta imgrucr+2
 
 		; red right
 		clc
-		lda lumarightlo+yoffset,y
+		lda lumarightlo,y
 		adc xoffsetred
 		sta imgrucrr+0
-		lda lumarightmid+yoffset,y
+		lda lumarightmid,y
 		adc #0
 		sta imgrucrr+1
-		lda lumarighthi+yoffset,y
+		lda lumarighthi,y
 		adc #0
 		sta imgrucrr+2
 
 		; calculate green x offset
+		clc
 		lda frame
-		asl
+		adc #32
+		;asl
 		tay
 		lda sine+64,y
 		lsr
@@ -524,37 +527,37 @@ img_render_irq
 
 		; green left
 		clc
-		lda lumaleftlo+yoffset,y
+		lda lumaleftlo,y
 		adc xoffsetgreen
 		sta imgrucg+0
-		lda lumaleftmid+yoffset,y
+		lda lumaleftmid,y
 		adc #0
 		sta imgrucg+1
-		lda lumalefthi+yoffset,y
+		lda lumalefthi,y
 		adc #0
 		sta imgrucg+2
 
 		; green right
 		clc
-		lda lumarightlo+yoffset,y
+		lda lumarightlo,y
 		adc xoffsetgreen
 		sta imgrucgr+0
-		lda lumarightmid+yoffset,y
+		lda lumarightmid,y
 		adc #0
 		sta imgrucgr+1
-		lda lumarighthi+yoffset,y
+		lda lumarighthi,y
 		adc #0
 		sta imgrucgr+2
 
 		; blue left
 		clc		
-		lda lumaleftlo+100
+		lda lumaleftlo+64
 		adc #64
 		sta imgrucb+0
-		lda lumaleftmid+100
+		lda lumaleftmid+64
 		adc #0
 		sta imgrucb+1
-		lda lumalefthi+100
+		lda lumalefthi+64
 		adc #0
 		sta imgrucb+2
 
@@ -575,6 +578,8 @@ img_render_irq
 		lda palntscscreenstart
 :		cmp $d012
 		bne :-
+
+		ldy $d012
 
 img_render_irq_loop
 
@@ -653,11 +658,6 @@ imgrucbr	.word $0000										; src
 			.byte $00										; cmd hi
 			.word $0000										; modulo, ignored
 
-		ldy $d012
-		iny
-
-		inx
-
 		clc
 		lda imgrucr+1
 		adc #2
@@ -706,10 +706,12 @@ imgrucbr	.word $0000										; src
 		adc #0
 		sta imgrucbr+2
 
+		iny
 :		cpy $d012
 		bne :-
 
-		cpx #200
+		inx
+		cpx #201
 		lbne img_render_irq_loop
 
 		jsr peppitoPlay
@@ -732,8 +734,6 @@ palntscscreenstart
 
 frame
 		.byte 0
-framewait
-		.byte 64
 
 xoffsetred
 		.byte 0
@@ -888,37 +888,37 @@ clearcolorramjob
 
 .align 256
 lumaleftlo
-		.repeat 400, I
+		.repeat 328, I
 			.byte <.loword((imgdata) + I*imgwidth + imgxoffset)
 		.endrepeat
 
 .align 256
 lumaleftmid
-		.repeat 400, I
+		.repeat 328, I
 			.byte >.loword((imgdata) + I*imgwidth + imgxoffset)
 		.endrepeat
 
 .align 256
 lumalefthi
-		.repeat 400, I
+		.repeat 328, I
 			.byte <.hiword((imgdata) + I*imgwidth + imgxoffset)
 		.endrepeat
 
 .align 256
 lumarightlo
-		.repeat 400, I
+		.repeat 328, I
 			.byte <.loword((imgdata) + I*imgwidth + imgxoffset + 240)
 		.endrepeat
 
 .align 256
 lumarightmid
-		.repeat 400, I
+		.repeat 328, I
 			.byte >.loword((imgdata) + I*imgwidth + imgxoffset + 240)
 		.endrepeat
 
 .align 256
 lumarighthi
-		.repeat 400, I
+		.repeat 328, I
 			.byte <.hiword((imgdata) + I*imgwidth + imgxoffset + 240)
 		.endrepeat
 
