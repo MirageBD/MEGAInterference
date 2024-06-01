@@ -14,7 +14,7 @@
 .define zp0						$f8
 
 .define imgwidth				512
-.define imgxoffset				96-64		; (512-320)/2
+.define imgxoffset				0 ; 96-64		; (512-320)/2
 
 ; ----------------------------------------------------------------------------------------------------
 
@@ -487,22 +487,25 @@ img_render_irq
 		lda lumaleftlo,y
 		adc xoffsetred
 		sta imgrucr+0
+		sta imgrucrr+0
 		lda lumaleftmid,y
 		adc #0
 		sta imgrucr+1
+		sta imgrucrr+1
 		lda lumalefthi,y
 		adc #0
 		sta imgrucr+2
+		sta imgrucrr+2
 
 		; red right
 		clc
-		lda lumarightlo,y
-		adc xoffsetred
+		lda imgrucrr+0
+		adc #240
 		sta imgrucrr+0
-		lda lumarightmid,y
+		lda imgrucrr+1
 		adc #0
 		sta imgrucrr+1
-		lda lumarighthi,y
+		lda imgrucrr+2
 		adc #0
 		sta imgrucrr+2
 
@@ -531,22 +534,25 @@ img_render_irq
 		lda lumaleftlo,y
 		adc xoffsetgreen
 		sta imgrucg+0
+		sta imgrucgr+0
 		lda lumaleftmid,y
 		adc #0
 		sta imgrucg+1
+		sta imgrucgr+1
 		lda lumalefthi,y
 		adc #0
 		sta imgrucg+2
+		sta imgrucgr+2
 
 		; green right
 		clc
-		lda lumarightlo,y
-		adc xoffsetgreen
+		lda imgrucgr+0
+		adc #240
 		sta imgrucgr+0
-		lda lumarightmid,y
+		lda imgrucgr+1
 		adc #0
 		sta imgrucgr+1
-		lda lumarighthi,y
+		lda imgrucgr+2
 		adc #0
 		sta imgrucgr+2
 
@@ -555,22 +561,25 @@ img_render_irq
 		lda lumaleftlo+64
 		adc #64
 		sta imgrucb+0
+		sta imgrucbr+0
 		lda lumaleftmid+64
 		adc #0
 		sta imgrucb+1
+		sta imgrucbr+1
 		lda lumalefthi+64
 		adc #0
 		sta imgrucb+2
+		sta imgrucbr+2
 
 		; blue right
 		clc
-		lda lumarightlo+100
-		adc #64
+		lda imgrucbr+0
+		adc #240
 		sta imgrucbr+0
-		lda lumarightmid+100
+		lda imgrucbr+1
 		adc #0
 		sta imgrucbr+1
-		lda lumarighthi+100
+		lda imgrucbr+2
 		adc #0
 		sta imgrucbr+2
 
@@ -589,6 +598,10 @@ img_render_irq_loop
 		sta $d070
 
 			sta $d707										; inline DMA copy
+			;.byte $82, 64									; Source skip rate (256ths of bytes)
+			;.byte $83, 1									; Source skip rate (whole bytes)
+			;.byte $84, 0									; Destination skip rate (256ths of bytes)
+			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 240										; count
@@ -627,6 +640,10 @@ imgrucb		.word $0000										; src
 		sta $d070
 
 			sta $d707										; inline DMA copy
+			;.byte $82, 64									; Source skip rate (256ths of bytes)
+			;.byte $83, 1									; Source skip rate (whole bytes)
+			;.byte $84, 0									; Destination skip rate (256ths of bytes)
+			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 80										; count
@@ -906,30 +923,15 @@ lumalefthi
 		.endrepeat
 
 .align 256
-lumarightlo
-		.repeat 328, I
-			.byte <.loword((imgdata) + I*imgwidth + imgxoffset + 240)
-		.endrepeat
-
-.align 256
-lumarightmid
-		.repeat 328, I
-			.byte >.loword((imgdata) + I*imgwidth + imgxoffset + 240)
-		.endrepeat
-
-.align 256
-lumarighthi
-		.repeat 328, I
-			.byte <.hiword((imgdata) + I*imgwidth + imgxoffset + 240)
-		.endrepeat
-
-.align 256
 charxsizes
 		.byte   10, 13, 10, 14, 11, 8,  8, 15, 11,  4,  8, 11,  8, 16, 11, 14, 10, 15, 10, 12, 11, 12, 13, 16, 13, 13, 11,  8,  5,  5,  5,  5, 12, 6, 10, 10, 12, 11, 10, 11, 10, 10,  4,  9,  12, 10, 7,  7
 		;       @   A   B   C   D   E   F   G   H   I   J   K   L   M   N   O   P   Q   R   S   T   U   V   W   X   Y   Z   _   .   ,   :   ;   0   1   2   3   4   5   6   7   8   9   !   ?   $   *   (   )
 
 scrolltext
 		.byte "@abcdefghijklmnopqrstuvwxyz .,:;0123456789!?$*()"
+
+charstrip
+		.byte 0
 
 scrollposlo
 		.byte 0
