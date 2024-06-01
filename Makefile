@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 
-megabuild		= 1
+megabuild		= 0
 attachdebugger	= 0
 
 # -----------------------------------------------------------------------------
@@ -47,12 +47,17 @@ OBJS = $(EXE_DIR)/boot.o $(EXE_DIR)/main.o
 
 BINFILES = $(BIN_DIR)/test1.mim
 BINFILES += $(BIN_DIR)/song.mod
+BINFILES += $(BIN_DIR)/font.mim
 
 BINFILESMC  = $(BIN_DIR)/test1.mim.addr.mc
 BINFILESMC += $(BIN_DIR)/song.mod.addr.mc
+BINFILESMC += $(BIN_DIR)/font.mim.addr.mc
 
 $(BIN_DIR)/test1.mim: $(BIN_DIR)/test1.raw
 	$(MEGAIMAGE) 512 328 1 $(BIN_DIR)/test1.raw $(BIN_DIR)/test1.mim
+
+$(BIN_DIR)/font.mim: $(BIN_DIR)/font.raw
+	$(MEGAIMAGE) 1024 16 1 $(BIN_DIR)/font.raw $(BIN_DIR)/font.mim
 
 $(EXE_DIR)/boot.o:	$(SRC_DIR)/boot.s \
 					$(SRC_DIR)/main.s \
@@ -68,8 +73,10 @@ $(EXE_DIR)/boot.o:	$(SRC_DIR)/boot.s \
 $(BIN_DIR)/alldata.bin: $(BINFILES)
 	$(MEGAADDRESS) $(BIN_DIR)/test1.mim               00000000
 	$(MEGAADDRESS) $(BIN_DIR)/song.mod                00000000
+	$(MEGAADDRESS) $(BIN_DIR)/font.mim                00000000
 	$(MEGACRUNCH) $(BIN_DIR)/test1.mim.addr
 	$(MEGACRUNCH) $(BIN_DIR)/song.mod.addr
+	$(MEGACRUNCH) $(BIN_DIR)/font.mim.addr
 	$(MEGAIFFL) $(BINFILESMC) $(BIN_DIR)/alldata.bin
 
 $(EXE_DIR)/boot.prg.addr.mc: $(BINFILES) $(EXE_DIR)/boot.o Linkfile

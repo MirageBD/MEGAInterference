@@ -6,7 +6,7 @@
 
 .define moddata					$10000  ; $11860
 .define imgdata					$22000  ; 512*328 = $29000
-.define endofdata				$4b000
+.define fontdata				$4b000  ; 1024*16 = $4000
 
 .define emptychar				$ff80
 .define screen1					$b000
@@ -142,6 +142,7 @@ main_restart
 		FLOPPY_IFFL_FAST_LOAD_INIT "MEGAINT.DATA"
 		FLOPPY_IFFL_FAST_LOAD_ADDRESS imgdata			; test1.mim
 		FLOPPY_IFFL_FAST_LOAD_ADDRESS moddata			; song.mod
+		FLOPPY_IFFL_FAST_LOAD_ADDRESS fontdata			; font.mim
 
 		jsr fl_exit
 		
@@ -922,7 +923,28 @@ lumarighthi
 			.byte <.hiword((imgdata) + I*imgwidth + imgxoffset + 240)
 		.endrepeat
 
+.align 256
+charxsizes
+		.byte   10, 13, 10, 14, 11, 8,  8, 15, 11,  4,  8, 11,  8, 16, 11, 14, 10, 15, 10, 12, 11, 12, 13, 16, 13, 13, 11,  8,  5,  5,  5,  5, 12, 6, 10, 10, 12, 11, 10, 11, 10, 10,  4,  9,  12, 10, 7,  7
+		;       @   A   B   C   D   E   F   G   H   I   J   K   L   M   N   O   P   Q   R   S   T   U   V   W   X   Y   Z   _   .   ,   :   ;   0   1   2   3   4   5   6   7   8   9   !   ?   $   *   (   )
 
+scrolltext
+		.byte "@abcdefghijklmnopqrstuvwxyz .,:;0123456789!?$*()"
+
+scrollposlo
+		.byte 0
+scrollposhi
+		.byte 0
+
+charremap
+		.byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		.byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		.byte $1b, $2a, $00, $00, $2c, $00, $00, $00, $2e, $2f, $2d, $00, $1d, $00, $1c, $00
+		.byte $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $1e, $1f, $00, $00, $00, $2b
+		.byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		.byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		.byte $00, $01, $02, $03, $04, $05, $06, $07, $08, $09, $0a, $0b, $0c, $0d, $0e, $0f ; @ a b c d e f g h i j k l m n o
+		.byte $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $1a, $00, $00, $00, $00, $00 ; p q r s t u v w x y z
 
 
 /*
