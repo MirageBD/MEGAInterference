@@ -476,6 +476,23 @@ img_render_irq
 		lsr
 		sta xoffsetred
 
+		; calculate red x scale
+		clc
+		lda frame
+		;asl
+		tay
+		lda sine,y
+		tay
+		lda fooaddlo,y
+		sta rrlo+1
+		lda fooaddhi,y
+		sta rrhi+1
+		tya
+		lsr
+		lsr
+		sta xscalered
+		sta imgrucrs+1
+
 		; calculate red y offset
 		ldy frame
 		lda sine,y
@@ -500,10 +517,10 @@ img_render_irq
 		; red right
 		clc
 		lda imgrucrr+0
-		adc #240
+rrlo	adc #240
 		sta imgrucrr+0
 		lda imgrucrr+1
-		adc #0
+rrhi	adc #0
 		sta imgrucrr+1
 		lda imgrucrr+2
 		adc #0
@@ -518,6 +535,23 @@ img_render_irq
 		lda sine+64,y
 		lsr
 		sta xoffsetgreen
+
+		; calculate green x scale
+		clc
+		lda frame
+		asl
+		tay
+		lda sine,y
+		tay
+		lda fooaddlo,y
+		sta grlo+1
+		lda fooaddhi,y
+		sta grhi+1
+		tya
+		lsr
+		lsr
+		sta xscalegreen
+		sta imgrucgs+1
 
 		; calculate green y offset
 		clc
@@ -547,10 +581,10 @@ img_render_irq
 		; green right
 		clc
 		lda imgrucgr+0
-		adc #240
+grlo	adc #240+60
 		sta imgrucgr+0
 		lda imgrucgr+1
-		adc #0
+grhi	adc #1
 		sta imgrucgr+1
 		lda imgrucgr+2
 		adc #0
@@ -598,8 +632,8 @@ img_render_irq_loop
 		sta $d070
 
 			sta $d707										; inline DMA copy
-			;.byte $82, 64									; Source skip rate (256ths of bytes)
-			;.byte $83, 1									; Source skip rate (whole bytes)
+imgrucrs	.byte $82, 64									; Source skip rate (256ths of bytes)
+			.byte $83, 1									; Source skip rate (whole bytes)
 			;.byte $84, 0									; Destination skip rate (256ths of bytes)
 			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
@@ -613,6 +647,10 @@ imgrucr		.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
+imgrucgs	.byte $82, 64									; Source skip rate (256ths of bytes)
+			.byte $83, 1									; Source skip rate (whole bytes)
+			;.byte $84, 0									; Destination skip rate (256ths of bytes)
+			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 240										; count
@@ -624,6 +662,10 @@ imgrucg		.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
+			;.byte $82, 64									; Source skip rate (256ths of bytes)
+			;.byte $83, 1									; Source skip rate (whole bytes)
+			;.byte $84, 0									; Destination skip rate (256ths of bytes)
+			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 240										; count
@@ -655,6 +697,10 @@ imgrucrr	.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
+			.byte $82, 64									; Source skip rate (256ths of bytes)
+			.byte $83, 1									; Source skip rate (whole bytes)
+			;.byte $84, 0									; Destination skip rate (256ths of bytes)
+			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 80										; count
@@ -666,6 +712,10 @@ imgrucgr	.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
+			;.byte $82, 64									; Source skip rate (256ths of bytes)
+			;.byte $83, 1									; Source skip rate (whole bytes)
+			;.byte $84, 0									; Destination skip rate (256ths of bytes)
+			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 80										; count
@@ -757,6 +807,12 @@ xoffsetred
 		.byte 0
 
 xoffsetgreen
+		.byte 0
+
+xscalegreen
+		.byte 0
+
+xscalered
 		.byte 0
 
 ; ----------------------------------------------------------------------------------------------------------------------------------------
@@ -1022,4 +1078,16 @@ sine
 			.byte 217, 215, 213, 210, 208, 206, 203, 201, 198, 195, 193, 190, 187, 185, 182, 179, 176, 173, 170, 167, 164, 161, 158, 155, 152, 149, 146, 143, 140, 137, 134, 131
 			.byte 128, 124, 121, 118, 115, 112, 109, 106, 103, 100, 097, 094, 091, 088, 085, 082, 079, 076, 073, 070, 068, 065, 062, 060, 057, 054, 052, 049, 047, 045, 042, 040
 			.byte 038, 036, 033, 031, 029, 027, 025, 024, 022, 020, 019, 017, 015, 014, 013, 011, 010, 009, 008, 007, 006, 005, 004, 004, 003, 002, 002, 001, 001, 001, 001, 000
+		.endrepeat
+
+.align 256
+fooaddlo
+		.repeat 256, I
+			.byte <(240 + I * 240/(256*4)) ; *4 because I'm shifting 256 to 64
+		.endrepeat
+
+.align 256
+fooaddhi
+		.repeat 256, I
+			.byte >(240 + I * 240/(256*4))
 		.endrepeat
