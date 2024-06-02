@@ -479,7 +479,8 @@ img_render_irq
 		; calculate red x scale
 		clc
 		lda frame
-		;asl
+		asl
+		adc #64+128
 		tay
 		lda sine,y
 		tay
@@ -489,9 +490,9 @@ img_render_irq
 		sta rrhi+1
 		tya
 		lsr
-		lsr
 		sta xscalered
 		sta imgrucrs+1
+		sta imgrucrrs+1
 
 		; calculate red y offset
 		ldy frame
@@ -530,7 +531,6 @@ rrhi	adc #0
 		clc
 		lda frame
 		adc #32
-		;asl
 		tay
 		lda sine+64,y
 		lsr
@@ -539,7 +539,6 @@ rrhi	adc #0
 		; calculate green x scale
 		clc
 		lda frame
-		asl
 		tay
 		lda sine,y
 		tay
@@ -549,9 +548,9 @@ rrhi	adc #0
 		sta grhi+1
 		tya
 		lsr
-		lsr
 		sta xscalegreen
 		sta imgrucgs+1
+		sta imgrucgrs+1
 
 		; calculate green y offset
 		clc
@@ -593,7 +592,7 @@ grhi	adc #1
 		; blue left
 		clc		
 		lda lumaleftlo+64
-		adc #64
+		adc #100
 		sta imgrucb+0
 		sta imgrucbr+0
 		lda lumaleftmid+64
@@ -682,8 +681,8 @@ imgrucb		.word $0000										; src
 		sta $d070
 
 			sta $d707										; inline DMA copy
-			;.byte $82, 64									; Source skip rate (256ths of bytes)
-			;.byte $83, 1									; Source skip rate (whole bytes)
+imgrucrrs	.byte $82, 64									; Source skip rate (256ths of bytes)
+			.byte $83, 1									; Source skip rate (whole bytes)
 			;.byte $84, 0									; Destination skip rate (256ths of bytes)
 			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
@@ -697,7 +696,7 @@ imgrucrr	.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
-			.byte $82, 64									; Source skip rate (256ths of bytes)
+imgrucgrs	.byte $82, 0									; Source skip rate (256ths of bytes)
 			.byte $83, 1									; Source skip rate (whole bytes)
 			;.byte $84, 0									; Destination skip rate (256ths of bytes)
 			;.byte $85, 1									; Destination skip rate (whole bytes)
@@ -1066,7 +1065,6 @@ linebluelefthi
 
 */
 
-
 .align 256
 sine
 		.repeat 2
@@ -1083,11 +1081,12 @@ sine
 .align 256
 fooaddlo
 		.repeat 256, I
-			.byte <(240 + I * 240/(256*4)) ; *4 because I'm shifting 256 to 64
+			.byte <(240 + I * 240/(256*2)) ; *2 because I'm shifting 256 to 128
 		.endrepeat
 
 .align 256
 fooaddhi
 		.repeat 256, I
-			.byte >(240 + I * 240/(256*4))
+			.byte >(240 + I * 240/(256*2))
 		.endrepeat
+
