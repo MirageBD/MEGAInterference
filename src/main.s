@@ -4,9 +4,10 @@
 
 .define imgscreen				$a000	; size = 80*50*2 = $1f40
 
-.define moddata					$10000  ; $11860
-.define imgdata					$22000  ; 512*328 = $29000
-.define fontdata				$4b000  ; 1024*16 = $4000
+.define fontdata				$10000  ; 1024*16 = $04000
+.define scrollimgdata			$14000  ;  512*16 = $02000
+.define imgdata					$20000  ; 512*328 = $29000
+.define moddata					$49000  ;           $12000
 
 .define emptychar				$ff80
 .define screen1					$b000
@@ -21,7 +22,6 @@
 .segment "MAIN"
 
 entry_main
-main_restart
 
 		sei
 
@@ -184,6 +184,14 @@ main_restart
 		lda #$50										; set TEXTXPOS to same as SDBDRWDLSB
 		sta $d04c
 
+		lda #$32										; pal screen start
+		sta palntscscreenstart
+		bit $d06f
+		bpl :+
+		lda #$1a										; ntsc screen start
+		sta palntscscreenstart
+:
+
 		jsr img_rendinit
 
 		lda #$7f										; disable CIA interrupts
@@ -194,11 +202,9 @@ main_restart
 
 		lda #$00										; disable IRQ raster interrupts because C65 uses raster interrupts in the ROM
 		sta $d01a
-		
+			
 		lda palntscscreenstart
 		sta $d012
-		;lda #$ff										; setup IRQ interrupt
-		;sta $d012
 		lda #<img_render_irq
 		sta $fffe
 		lda #>img_render_irq
@@ -230,17 +236,6 @@ img_rowchars
 		.byte 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,    1,2,3,4,5,6,7,8,9,10
 
 img_rendinit
-
-		;lda #$00
-		;sta $d015
-
-		lda #$32										; pal screen start
-		sta palntscscreenstart
-		bit $d06f
-		bpl :+
-		lda #$1a										; ntsc screen start
-		sta palntscscreenstart
-:
 
 		; WHY THE HELL DO I NEED TO FILL 2 PALETTES HERE???
 
@@ -466,8 +461,9 @@ img_render_irq
 		lda #$00
 		sta $d020
 
-		; calculate red x offset
-		clc
+		; calculate red offsets and scale -----------------------
+
+		clc					; calculate red x offset
 		lda frame
 		adc #32
 		asl
@@ -476,59 +472,23 @@ img_render_irq
 		lsr
 		sta xoffsetred
 
-		; calculate red x scale
-		clc
+		ldy frame			; calculate red y offset
+		lda sine,y
+		lsr
+		sta yoffsetred
+
+		clc					; calculate red x scale
 		lda frame
 		asl
 		adc #64+128
 		tay
 		lda sine,y
-		tay
-		lda fooaddlo,y
-		sta rrlo+1
-		lda fooaddhi,y
-		sta rrhi+1
-		tya
 		lsr
 		sta xscalered
-		sta imgrucrs+1
-		sta imgrucrrs+1
 
-		; calculate red y offset
-		ldy frame
-		lda sine,y
-		lsr
-		tay
+		; calculate green offsets and scale -----------------------
 
-		; red left
-		clc
-		lda lumaleftlo,y
-		adc xoffsetred
-		sta imgrucr+0
-		sta imgrucrr+0
-		lda lumaleftmid,y
-		adc #0
-		sta imgrucr+1
-		sta imgrucrr+1
-		lda lumalefthi,y
-		adc #0
-		sta imgrucr+2
-		sta imgrucrr+2
-
-		; red right
-		clc
-		lda imgrucrr+0
-rrlo	adc #240
-		sta imgrucrr+0
-		lda imgrucrr+1
-rrhi	adc #0
-		sta imgrucrr+1
-		lda imgrucrr+2
-		adc #0
-		sta imgrucrr+2
-
-		; calculate green x offset
-		clc
+		clc					; calculate green x offset
 		lda frame
 		adc #32
 		tay
@@ -536,85 +496,117 @@ rrhi	adc #0
 		lsr
 		sta xoffsetgreen
 
-		; calculate green x scale
-		clc
-		lda frame
-		tay
-		lda sine,y
-		tay
-		lda fooaddlo,y
-		sta grlo+1
-		lda fooaddhi,y
-		sta grhi+1
-		tya
-		lsr
-		sta xscalegreen
-		sta imgrucgs+1
-		sta imgrucgrs+1
-
-		; calculate green y offset
-		clc
+		clc					; calculate green y offset
 		lda frame
 		asl
 		adc #128
 		tay
 		lda sine,y
 		lsr
+		sta yoffsetgreen
+
+		clc					; calculate green x scale
+		lda frame
 		tay
+		lda sine,y
+		lsr
+		sta xscalegreen
 
-		; green left
-		clc
-		lda lumaleftlo,y
-		adc xoffsetgreen
-		sta imgrucg+0
-		sta imgrucgr+0
+		; calculate blue offsets and scale -----------------------
+
+		clc					; calculate blue x offset
+		lda frame
+		asl
+		adc #32
+		tay
+		lda sine+64,y
+		lsr
+		sta xoffsetblue
+
+		clc					; calculate blue y offset
+		lda frame
+		asl
+		adc #64
+		tay
+		lda sine,y
+		lsr
+		sta yoffsetblue
+
+		clc					; calculate blue x scale
+		lda frame
+		asl
+		tay
+		lda sine,y
+		lsr
+		sta xscaleblue
+
+		; set red values -----------------------
+
+		lda xoffsetred		; red left
+		sta ir_rl+0
+		ldy yoffsetred
 		lda lumaleftmid,y
-		adc #0
-		sta imgrucg+1
-		sta imgrucgr+1
+		sta ir_rl+1
 		lda lumalefthi,y
-		adc #0
-		sta imgrucg+2
-		sta imgrucgr+2
+		sta ir_rl+2
+		sta ir_rr+2
+		lda xscalered
+		sta ir_rls+1
+		sta ir_rrs+1
 
-		; green right
-		clc
-		lda imgrucgr+0
-grlo	adc #240+60
-		sta imgrucgr+0
-		lda imgrucgr+1
-grhi	adc #1
-		sta imgrucgr+1
-		lda imgrucgr+2
-		adc #0
-		sta imgrucgr+2
+		ldy	xscalered		; red right
+		lda ir_rl+0
+		adc xscaleaddlo,y
+		sta ir_rr+0
+		lda ir_rl+1
+		adc xscaleaddhi,y
+		sta ir_rr+1
 
-		; blue left
-		clc		
-		lda lumaleftlo+64
-		adc #100
-		sta imgrucb+0
-		sta imgrucbr+0
-		lda lumaleftmid+64
-		adc #0
-		sta imgrucb+1
-		sta imgrucbr+1
-		lda lumalefthi+64
-		adc #0
-		sta imgrucb+2
-		sta imgrucbr+2
+		; set green values -----------------------
 
-		; blue right
-		clc
-		lda imgrucbr+0
-		adc #240
-		sta imgrucbr+0
-		lda imgrucbr+1
-		adc #0
-		sta imgrucbr+1
-		lda imgrucbr+2
-		adc #0
-		sta imgrucbr+2
+		lda xoffsetgreen	; green left
+		sta ir_gl+0
+		ldy yoffsetgreen
+		lda lumaleftmid,y
+		sta ir_gl+1
+		lda lumalefthi,y
+		sta ir_gl+2
+		sta ir_gr+2
+		lda xscalegreen
+		sta ir_gls+1
+		sta ir_grs+1
+
+		ldy	xscalegreen		; green right
+		lda ir_gl+0
+		adc xscaleaddlo,y
+		sta ir_gr+0
+		lda ir_gl+1
+		adc xscaleaddhi,y
+		sta ir_gr+1
+
+		; set blue values -----------------------
+
+		lda xoffsetblue		; blue left
+		sta ir_bl+0
+		ldy yoffsetblue
+		lda lumaleftmid,y
+		sta ir_bl+1
+		lda lumalefthi,y
+		sta ir_bl+2
+		sta ir_br+2
+		lda xscaleblue
+		sta ir_bls+1
+		sta ir_brs+1
+
+		ldy xscaleblue		; blue right
+		lda ir_bl+0
+		adc xscaleaddlo,y
+		sta ir_br+0
+		lda ir_bl+1
+		adc xscaleaddhi,y
+		sta ir_br+1
+
+		; start render loop -----------------------
 
 		ldx #0
 
@@ -631,14 +623,12 @@ img_render_irq_loop
 		sta $d070
 
 			sta $d707										; inline DMA copy
-imgrucrs	.byte $82, 64									; Source skip rate (256ths of bytes)
+ir_rls		.byte $82, 64									; Source skip rate (256ths of bytes)
 			.byte $83, 1									; Source skip rate (whole bytes)
-			;.byte $84, 0									; Destination skip rate (256ths of bytes)
-			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 240										; count
-imgrucr		.word $0000										; src
+ir_rl		.word $0000										; src
 			.byte $00										; src bank and flags
 			.word $d108										; dst
 			.byte (($d108 >> 16) & $0f) | %10000000			; dst bank and flags
@@ -646,14 +636,12 @@ imgrucr		.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
-imgrucgs	.byte $82, 64									; Source skip rate (256ths of bytes)
+ir_gls		.byte $82, 64									; Source skip rate (256ths of bytes)
 			.byte $83, 1									; Source skip rate (whole bytes)
-			;.byte $84, 0									; Destination skip rate (256ths of bytes)
-			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 240										; count
-imgrucg		.word $0000										; src
+ir_gl		.word $0000										; src
 			.byte $00										; src bank and flags
 			.word $d208										; dst
 			.byte (($d208 >> 16) & $0f) | %10000000			; dst bank and flags
@@ -661,14 +649,12 @@ imgrucg		.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
-			;.byte $82, 64									; Source skip rate (256ths of bytes)
-			;.byte $83, 1									; Source skip rate (whole bytes)
-			;.byte $84, 0									; Destination skip rate (256ths of bytes)
-			;.byte $85, 1									; Destination skip rate (whole bytes)
+ir_bls		.byte $82, 0									; Source skip rate (256ths of bytes)
+			.byte $83, 1									; Source skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 240										; count
-imgrucb		.word $0000										; src
+ir_bl		.word $0000										; src
 			.byte $00										; src bank and flags
 			.word $d308										; dst
 			.byte (($d308 >> 16) & $0f) | %10000000			; dst bank and flags
@@ -681,14 +667,12 @@ imgrucb		.word $0000										; src
 		sta $d070
 
 			sta $d707										; inline DMA copy
-imgrucrrs	.byte $82, 64									; Source skip rate (256ths of bytes)
+ir_rrs		.byte $82, 64									; Source skip rate (256ths of bytes)
 			.byte $83, 1									; Source skip rate (whole bytes)
-			;.byte $84, 0									; Destination skip rate (256ths of bytes)
-			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 80										; count
-imgrucrr	.word $0000										; src
+ir_rr		.word $0000										; src
 			.byte $00										; src bank and flags
 			.word $d108										; dst
 			.byte (($d108 >> 16) & $0f) | %10000000			; dst bank and flags
@@ -696,14 +680,12 @@ imgrucrr	.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
-imgrucgrs	.byte $82, 0									; Source skip rate (256ths of bytes)
+ir_grs		.byte $82, 64									; Source skip rate (256ths of bytes)
 			.byte $83, 1									; Source skip rate (whole bytes)
-			;.byte $84, 0									; Destination skip rate (256ths of bytes)
-			;.byte $85, 1									; Destination skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 80										; count
-imgrucgr	.word $0000										; src
+ir_gr		.word $0000										; src
 			.byte $00										; src bank and flags
 			.word $d208										; dst
 			.byte (($d208 >> 16) & $0f) | %10000000			; dst bank and flags
@@ -711,67 +693,61 @@ imgrucgr	.word $0000										; src
 			.word $0000										; modulo, ignored
 
 			sta $d707										; inline DMA copy
-			;.byte $82, 64									; Source skip rate (256ths of bytes)
-			;.byte $83, 1									; Source skip rate (whole bytes)
-			;.byte $84, 0									; Destination skip rate (256ths of bytes)
-			;.byte $85, 1									; Destination skip rate (whole bytes)
+ir_brs		.byte $82, 0									; Source skip rate (256ths of bytes)
+			.byte $83, 1									; Source skip rate (whole bytes)
 			.byte $00										; end of job options
 			.byte $00										; copy
 			.word 80										; count
-imgrucbr	.word $0000										; src
+ir_br		.word $0000										; src
 			.byte $00										; src bank and flags
 			.word $d308										; dst
 			.byte (($d308 >> 16) & $0f) | %10000000			; dst bank and flags
 			.byte $00										; cmd hi
 			.word $0000										; modulo, ignored
 
-		clc
-		lda imgrucr+1
+		clc				; increase red left
+		lda ir_rl+1
 		adc #2
-		sta imgrucr+1
-		lda imgrucr+2
-		adc #0
-		sta imgrucr+2
+		sta ir_rl+1
+		bcc :+
+		inc ir_rl+2
 
-		clc
-		lda imgrucg+1
+:		clc				; increase green left
+		lda ir_gl+1
 		adc #2
-		sta imgrucg+1
-		lda imgrucg+2
-		adc #0
-		sta imgrucg+2
+		sta ir_gl+1
+		bcc :+
+		inc ir_gl+2
 
-		clc
-		lda imgrucb+1
+:		clc				; increase blue left
+		lda ir_bl+1
 		adc #2
-		sta imgrucb+1
-		lda imgrucb+2
-		adc #0
-		sta imgrucb+2
+		sta ir_bl+1
+		bcc :+
+		inc ir_bl+2
 
-		clc
-		lda imgrucrr+1
+:		clc				; increase red right
+		lda ir_rr+1
 		adc #2
-		sta imgrucrr+1
-		lda imgrucrr+2
-		adc #0
-		sta imgrucrr+2
+		sta ir_rr+1
+		bcc :+
+		inc ir_rr+2
 
-		clc
-		lda imgrucgr+1
+:		clc				; increase green right
+		lda ir_gr+1
 		adc #2
-		sta imgrucgr+1
-		lda imgrucgr+2
-		adc #0
-		sta imgrucgr+2
+		sta ir_gr+1
+		bcc :+
+		inc ir_gr+2
 
-		clc
-		lda imgrucbr+1
+:		clc				; increase blue right
+		lda ir_br+1
 		adc #2
-		sta imgrucbr+1
-		lda imgrucbr+2
-		adc #0
-		sta imgrucbr+2
+		sta ir_br+1
+		bcc :+
+		inc ir_br+2
+
+:
 
 		iny
 :		cpy $d012
@@ -785,9 +761,6 @@ imgrucbr	.word $0000										; src
 
 		inc frame
 
-		;lda palntscscreenstart
-		;sta $d012
-
 		plz
 		ply
 		plx
@@ -796,23 +769,21 @@ imgrucbr	.word $0000										; src
 		asl $d019
 		rti
 
-palntscscreenstart
-		.byte $32
+palntscscreenstart	.byte $32
 
-frame
-		.byte 0
+frame				.byte 0
 
-xoffsetred
-		.byte 0
+xoffsetred			.byte 0
+yoffsetred			.byte 0
+xscalered			.byte 0
 
-xoffsetgreen
-		.byte 0
+xoffsetgreen		.byte 0
+yoffsetgreen		.byte 0
+xscalegreen			.byte 0
 
-xscalegreen
-		.byte 0
-
-xscalered
-		.byte 0
+xoffsetblue			.byte 100
+yoffsetblue			.byte 64
+xscaleblue			.byte 0
 
 ; ----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -960,12 +931,6 @@ clearcolorramjob
 .segment "TABLES"
 
 .align 256
-lumaleftlo
-		.repeat 328, I
-			.byte <.loword((imgdata) + I*imgwidth + imgxoffset)
-		.endrepeat
-
-.align 256
 lumaleftmid
 		.repeat 328, I
 			.byte >.loword((imgdata) + I*imgwidth + imgxoffset)
@@ -1003,68 +968,6 @@ charremap
 		.byte $00, $01, $02, $03, $04, $05, $06, $07, $08, $09, $0a, $0b, $0c, $0d, $0e, $0f ; @ a b c d e f g h i j k l m n o
 		.byte $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $1a, $00, $00, $00, $00, $00 ; p q r s t u v w x y z
 
-
-/*
-
-.align 256
-lineredleftlo
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-.align 256
-lineredleftmid
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-.align 256
-lineredlefthi
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-
-
-.align 256
-linegreenleftlo
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-.align 256
-linegreenleftmid
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-.align 256
-linegreenlefthi
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-
-.align 256
-lineblueleftlo
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-.align 256
-lineblueleftmid
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-.align 256
-linebluelefthi
-		.repeat 200
-			.byte 0
-		.endrepeat
-
-*/
-
 .align 256
 sine
 		.repeat 2
@@ -1079,14 +982,14 @@ sine
 		.endrepeat
 
 .align 256
-fooaddlo
+xscaleaddlo
 		.repeat 256, I
-			.byte <(240 + I * 240/(256*2)) ; *2 because I'm shifting 256 to 128
+			.byte <(240 + I * 240/256)
 		.endrepeat
 
 .align 256
-fooaddhi
+xscaleaddhi
 		.repeat 256, I
-			.byte >(240 + I * 240/(256*2))
+			.byte >(240 + I * 240/256)
 		.endrepeat
 

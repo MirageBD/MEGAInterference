@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 
-megabuild		= 1
+megabuild		= 0
 attachdebugger	= 0
 
 # -----------------------------------------------------------------------------
@@ -97,6 +97,7 @@ $(EXE_DIR)/megaint.d81: $(EXE_DIR)/boot.prg.addr.mc $(BIN_DIR)/alldata.bin
 run: $(EXE_DIR)/megaint.d81
 
 ifeq ($(megabuild), 1)
+	m65 -l COM3 -T 'list'
 	$(MEGAFTP) -c "put D:\Mega\MegaInterference\exe\megaint.d81 megaint.d81" -c "quit"
 	$(EL) -m MEGAINT.D81 -r $(EXE_DIR)/boot.prg.addr.mc
 ifeq ($(attachdebugger), 1)
