@@ -469,7 +469,6 @@ img_render_irq
 		asl
 		tay
 		lda sine,y
-		lsr
 		sta xoffsetred
 
 		ldy frame			; calculate red y offset
@@ -479,8 +478,7 @@ img_render_irq
 
 		clc					; calculate red x scale
 		lda frame
-		asl
-		adc #64+128
+		adc #128
 		tay
 		lda sine,y
 		lsr
@@ -493,7 +491,6 @@ img_render_irq
 		adc #32
 		tay
 		lda sine+64,y
-		lsr
 		sta xoffsetgreen
 
 		clc					; calculate green y offset
@@ -507,6 +504,7 @@ img_render_irq
 
 		clc					; calculate green x scale
 		lda frame
+		asl
 		tay
 		lda sine,y
 		lsr
@@ -520,7 +518,6 @@ img_render_irq
 		adc #32
 		tay
 		lda sine+64,y
-		lsr
 		sta xoffsetblue
 
 		clc					; calculate blue y offset
