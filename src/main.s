@@ -461,103 +461,6 @@ img_render_irq
 		lda #$00
 		sta $d020
 
-		; calculate green offsets and scale -----------------------
-
-		clc					; calculate green x offset
-		lda frame
-		adc #32
-		tay
-		lda sine+64,y
-		sta xoffsetgreen
-
-		clc					; calculate green y offset
-		lda frame
-		asl
-		adc #128
-		tay
-		lda sine,y
-		lsr
-		sta yoffsetgreen
-
-		clc					; calculate green x scale
-		lda frame
-		asl
-		tay
-		lda sine,y
-		lsr
-		sta xscalegreen
-
-		; calculate blue offsets and scale -----------------------
-
-		clc					; calculate blue x offset
-		lda frame
-		asl
-		adc #32
-		tay
-		lda sine+64,y
-		sta xoffsetblue
-
-		clc					; calculate blue y offset
-		lda frame
-		asl
-		adc #64
-		tay
-		lda sine,y
-		lsr
-		sta yoffsetblue
-
-		clc					; calculate blue x scale
-		lda frame
-		asl
-		tay
-		lda sine,y
-		lsr
-		sta xscaleblue
-
-		; set green values -----------------------
-
-		lda xoffsetgreen	; green left
-		sta ir_gl+0
-		ldy yoffsetgreen
-		lda lumaleftmid,y
-		sta ir_gl+1
-		lda lumalefthi,y
-		sta ir_gl+2
-		sta ir_gr+2
-		lda xscalegreen
-		sta ir_gls+1
-		sta ir_grs+1
-
-		ldy	xscalegreen		; green right
-		lda ir_gl+0
-		adc xscaleaddlo,y
-		sta ir_gr+0
-		lda ir_gl+1
-		adc xscaleaddhi,y
-		sta ir_gr+1
-
-		; set blue values -----------------------
-
-		lda xoffsetblue		; blue left
-		sta ir_bl+0
-		ldy yoffsetblue
-		lda lumaleftmid,y
-		sta ir_bl+1
-		lda lumalefthi,y
-		sta ir_bl+2
-		sta ir_br+2
-		lda xscaleblue
-		sta ir_bls+1
-		sta ir_brs+1
-
-		ldy xscaleblue		; blue right
-		lda ir_bl+0
-		adc xscaleaddlo,y
-		sta ir_br+0
-		lda ir_bl+1
-		adc xscaleaddhi,y
-		sta ir_br+1
-
 		; start render loop -----------------------
 
 		ldx #0
@@ -666,35 +569,23 @@ ir_br		.word $0000										; src
 		lda tab_rr2,x
 		sta ir_rr+2
 
-:		clc				; increase green left
-		lda ir_gl+1
-		adc #2
+		lda tab_gl1,x
 		sta ir_gl+1
-		bcc :+
-		inc ir_gl+2
-
-:		clc				; increase green right
-		lda ir_gr+1
-		adc #2
+		lda tab_gl2,x
+		sta ir_gl+2
+		lda tab_gr1,x
 		sta ir_gr+1
-		bcc :+
-		inc ir_gr+2
+		lda tab_gr2,x
+		sta ir_gr+2
 
-:		clc				; increase blue left
-		lda ir_bl+1
-		adc #2
+		lda tab_bl1,x
 		sta ir_bl+1
-		bcc :+
-		inc ir_bl+2
-
-:		clc				; increase blue right
-		lda ir_br+1
-		adc #2
+		lda tab_bl2,x
+		sta ir_bl+2
+		lda tab_br1,x
 		sta ir_br+1
-		bcc :+
-		inc ir_br+2
-
-:
+		lda tab_br2,x
+		sta ir_br+2
 
 		iny
 :		cpy $d012
@@ -712,8 +603,19 @@ ir_br		.word $0000										; src
 		sta $d020
 
 		jsr calcredoffsets
-		jsr calctab_red
+		jsr calctab_red_horizontal
+		jsr calctab_red_vertical
 		jsr setfirstlineredvalues
+
+		jsr calcgreenoffsets
+		jsr calctab_green_horizontal
+		jsr calctab_green_vertical
+		jsr setfirstlinegreenvalues
+
+		jsr calcblueoffsets
+		jsr calctab_blue_horizontal
+		jsr calctab_blue_vertical
+		jsr setfirstlinebluevalues
 
 		lda #$00
 		sta $d020
@@ -766,6 +668,50 @@ setfirstlineredvalues
 
 		rts
 
+setfirstlinegreenvalues
+
+		lda xoffsetgreen
+		sta ir_gl+0
+		ldy	xscalegreen
+		sty ir_gls+1
+		sty ir_grs+1
+		clc
+		adc xscaleaddlo,y
+		sta ir_gr+0
+
+		lda tab_gl1
+		sta ir_gl+1
+		lda tab_gl2
+		sta ir_gl+2
+		lda tab_gr1
+		sta ir_gr+1
+		lda tab_gr2
+		sta ir_gr+2
+
+		rts
+
+setfirstlinebluevalues
+
+		lda xoffsetblue
+		sta ir_bl+0
+		ldy	xscaleblue
+		sty ir_bls+1
+		sty ir_brs+1
+		clc
+		adc xscaleaddlo,y
+		sta ir_br+0
+
+		lda tab_bl1
+		sta ir_bl+1
+		lda tab_bl2
+		sta ir_bl+2
+		lda tab_br1
+		sta ir_br+1
+		lda tab_br2
+		sta ir_br+2
+
+		rts
+
 ; ----------------------------------------------------------------------------------------------------------------------------------------
 
 calcredoffsets
@@ -793,9 +739,66 @@ calcredoffsets
 
 		rts
 
+calcgreenoffsets
+
+		clc					; calculate green x offset
+		lda frame
+		adc #32
+		tay
+		lda sine+64,y
+		sta xoffsetgreen
+
+		clc					; calculate green y offset
+		lda frame
+		asl
+		adc #128
+		tay
+		lda sine,y
+		lsr
+		sta yoffsetgreen
+
+		clc					; calculate green x scale
+		lda frame
+		asl
+		tay
+		lda sine,y
+		lsr
+		sta xscalegreen
+
+		rts
+
+calcblueoffsets
+
+		clc					; calculate blue x offset
+		lda frame
+		asl
+		adc #32
+		tay
+		lda sine+64,y
+		sta xoffsetblue
+
+		clc					; calculate blue y offset
+		lda frame
+		asl
+		adc #64
+		tay
+		lda sine,y
+		lsr
+		sta yoffsetblue
+
+		clc					; calculate blue x scale
+		lda frame
+		asl
+		tay
+		lda sine,y
+		lsr
+		sta xscaleblue
+
+		rts
+
 ; ----------------------------------------------------------------------------------------------------------------------------------------
 
-calctab_red
+calctab_red_horizontal
 
 		ldy yoffsetred
 		lda lumaleftmid,y
@@ -811,6 +814,50 @@ calctab_red
 		lda tab_rl1
 		adc xscaleaddhi,y
 		sta tab_rr1
+
+		rts
+
+calctab_green_horizontal
+
+		ldy yoffsetgreen
+		lda lumaleftmid,y
+		sta tab_gl1
+		lda lumalefthi,y
+		sta tab_gl2
+		sta tab_gr2
+
+		clc
+		lda xoffsetgreen
+		ldy	xscalegreen
+		adc xscaleaddlo,y
+		lda tab_gl1
+		adc xscaleaddhi,y
+		sta tab_gr1
+
+		rts
+
+calctab_blue_horizontal
+
+		ldy yoffsetblue
+		lda lumaleftmid,y
+		sta tab_bl1
+		lda lumalefthi,y
+		sta tab_bl2
+		sta tab_br2
+
+		clc
+		lda xoffsetblue
+		ldy	xscaleblue
+		adc xscaleaddlo,y
+		lda tab_bl1
+		adc xscaleaddhi,y
+		sta tab_br1
+
+		rts
+
+; ----------------------------------------------------------------------------------------------------------------------------------------
+
+calctab_red_vertical		
 
 		ldx #0
 :
@@ -829,6 +876,58 @@ calctab_red
 		lda tab_rr2+0,x
 		adc #0
 		sta tab_rr2+1,x
+
+		inx
+		cpx #199
+		bne :-
+
+		rts
+
+calctab_green_vertical		
+
+		ldx #0
+:
+		clc
+		lda tab_gl1+0,x
+		adc #2
+		sta tab_gl1+1,x
+		lda tab_gl2+0,x
+		adc #0
+		sta tab_gl2+1,x
+
+		clc
+		lda tab_gr1+0,x
+		adc #2
+		sta tab_gr1+1,x
+		lda tab_gr2+0,x
+		adc #0
+		sta tab_gr2+1,x
+
+		inx
+		cpx #199
+		bne :-
+
+		rts
+
+calctab_blue_vertical		
+
+		ldx #0
+:
+		clc
+		lda tab_bl1+0,x
+		adc #2
+		sta tab_bl1+1,x
+		lda tab_bl2+0,x
+		adc #0
+		sta tab_bl2+1,x
+
+		clc
+		lda tab_br1+0,x
+		adc #2
+		sta tab_br1+1,x
+		lda tab_br2+0,x
+		adc #0
+		sta tab_br2+1,x
 
 		inx
 		cpx #199
