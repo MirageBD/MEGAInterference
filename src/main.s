@@ -754,6 +754,9 @@ calcgreenoffsets
 		adc #32
 		tay
 		lda sine+64,y
+		lsr
+		clc
+		adc #64+32
 		sta xoffsetgreen
 
 		clc					; calculate green y offset
@@ -782,8 +785,8 @@ calcblueoffsets
 
 		clc					; calculate blue x offset
 		lda frame
-		asl
-		adc #32
+		;asl
+		adc #32+64
 		tay
 		lda sine+64,y
 		sta xoffsetblue
