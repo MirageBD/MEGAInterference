@@ -461,29 +461,6 @@ img_render_irq
 		lda #$00
 		sta $d020
 
-		; calculate red offsets and scale -----------------------
-
-		clc					; calculate red x offset
-		lda frame
-		adc #32
-		asl
-		tay
-		lda sine,y
-		sta xoffsetred
-
-		ldy frame			; calculate red y offset
-		lda sine,y
-		lsr
-		sta yoffsetred
-
-		clc					; calculate red x scale
-		lda frame
-		adc #128
-		tay
-		lda sine,y
-		lsr
-		sta xscalered
-
 		; calculate green offsets and scale -----------------------
 
 		clc					; calculate green x offset
@@ -536,28 +513,6 @@ img_render_irq
 		lda sine,y
 		lsr
 		sta xscaleblue
-
-		; set red values -----------------------
-
-		lda xoffsetred		; red left
-		sta ir_rl+0
-		ldy yoffsetred
-		lda lumaleftmid,y
-		sta ir_rl+1
-		lda lumalefthi,y
-		sta ir_rl+2
-		sta ir_rr+2
-		lda xscalered
-		sta ir_rls+1
-		sta ir_rrs+1
-
-		ldy	xscalered		; red right
-		lda ir_rl+0
-		adc xscaleaddlo,y
-		sta ir_rr+0
-		lda ir_rl+1
-		adc xscaleaddhi,y
-		sta ir_rr+1
 
 		; set green values -----------------------
 
@@ -702,12 +657,14 @@ ir_br		.word $0000										; src
 			.byte $00										; cmd hi
 			.word $0000										; modulo, ignored
 
-		clc				; increase red left
-		lda ir_rl+1
-		adc #2
+		lda tab_rl1,x
 		sta ir_rl+1
-		bcc :+
-		inc ir_rl+2
+		lda tab_rl2,x
+		sta ir_rl+2
+		lda tab_rr1,x
+		sta ir_rr+1
+		lda tab_rr2,x
+		sta ir_rr+2
 
 :		clc				; increase green left
 		lda ir_gl+1
@@ -716,26 +673,19 @@ ir_br		.word $0000										; src
 		bcc :+
 		inc ir_gl+2
 
-:		clc				; increase blue left
-		lda ir_bl+1
-		adc #2
-		sta ir_bl+1
-		bcc :+
-		inc ir_bl+2
-
-:		clc				; increase red right
-		lda ir_rr+1
-		adc #2
-		sta ir_rr+1
-		bcc :+
-		inc ir_rr+2
-
 :		clc				; increase green right
 		lda ir_gr+1
 		adc #2
 		sta ir_gr+1
 		bcc :+
 		inc ir_gr+2
+
+:		clc				; increase blue left
+		lda ir_bl+1
+		adc #2
+		sta ir_bl+1
+		bcc :+
+		inc ir_bl+2
 
 :		clc				; increase blue right
 		lda ir_br+1
@@ -757,6 +707,16 @@ ir_br		.word $0000										; src
 		jsr peppitoPlay
 
 		inc frame
+
+		lda #$80
+		sta $d020
+
+		jsr calcredoffsets
+		jsr calctab_red
+		jsr setfirstlineredvalues
+
+		lda #$00
+		sta $d020
 
 		plz
 		ply
@@ -781,6 +741,100 @@ xscalegreen			.byte 0
 xoffsetblue			.byte 100
 yoffsetblue			.byte 64
 xscaleblue			.byte 0
+
+; ----------------------------------------------------------------------------------------------------------------------------------------
+
+setfirstlineredvalues
+
+		lda xoffsetred
+		sta ir_rl+0
+		ldy	xscalered
+		sty ir_rls+1
+		sty ir_rrs+1
+		clc
+		adc xscaleaddlo,y
+		sta ir_rr+0
+
+		lda tab_rl1
+		sta ir_rl+1
+		lda tab_rl2
+		sta ir_rl+2
+		lda tab_rr1
+		sta ir_rr+1
+		lda tab_rr2
+		sta ir_rr+2
+
+		rts
+
+; ----------------------------------------------------------------------------------------------------------------------------------------
+
+calcredoffsets
+
+		clc					; calculate red x offset
+		lda frame
+		adc #32
+		asl
+		tay
+		lda sine,y
+		sta xoffsetred
+
+		ldy frame			; calculate red y offset
+		lda sine,y
+		lsr
+		sta yoffsetred
+
+		clc					; calculate red x scale
+		lda frame
+		adc #128
+		tay
+		lda sine,y
+		lsr
+		sta xscalered
+
+		rts
+
+; ----------------------------------------------------------------------------------------------------------------------------------------
+
+calctab_red
+
+		ldy yoffsetred
+		lda lumaleftmid,y
+		sta tab_rl1
+		lda lumalefthi,y
+		sta tab_rl2
+		sta tab_rr2
+
+		clc
+		lda xoffsetred
+		ldy	xscalered
+		adc xscaleaddlo,y
+		lda tab_rl1
+		adc xscaleaddhi,y
+		sta tab_rr1
+
+		ldx #0
+:
+		clc
+		lda tab_rl1+0,x
+		adc #2
+		sta tab_rl1+1,x
+		lda tab_rl2+0,x
+		adc #0
+		sta tab_rl2+1,x
+
+		clc
+		lda tab_rr1+0,x
+		adc #2
+		sta tab_rr1+1,x
+		lda tab_rr2+0,x
+		adc #0
+		sta tab_rr2+1,x
+
+		inx
+		cpx #199
+		bne :-
+
+		rts
 
 ; ----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -937,6 +991,69 @@ lumaleftmid
 lumalefthi
 		.repeat 328, I
 			.byte <.hiword((imgdata) + I*imgwidth + imgxoffset)
+		.endrepeat
+
+.align 256
+tab_rl1
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_rl2
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_rr1
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_rr2
+		.repeat 200
+			.byte 0
+		.endrepeat
+
+.align 256
+tab_gl1
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_gl2
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_gr1
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_gr2
+		.repeat 200
+			.byte 0
+		.endrepeat
+
+.align 256
+tab_bl1
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_bl2
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_br1
+		.repeat 200
+			.byte 0
+		.endrepeat
+.align 256
+tab_br2
+		.repeat 200
+			.byte 0
 		.endrepeat
 
 .align 256
