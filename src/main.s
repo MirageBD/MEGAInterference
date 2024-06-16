@@ -635,14 +635,19 @@ frame				.byte 0
 xoffsetred			.byte 0
 yoffsetred			.byte 0
 xscalered			.byte 0
+yscalered			.byte 0
 
 xoffsetgreen		.byte 0
 yoffsetgreen		.byte 0
 xscalegreen			.byte 0
+yscalegreen			.byte 0
 
 xoffsetblue			.byte 100
 yoffsetblue			.byte 64
 xscaleblue			.byte 0
+yscaleblue			.byte 0
+
+yscaletmplo			.byte 0
 
 ; ----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -737,6 +742,9 @@ calcredoffsets
 		lsr
 		sta xscalered
 
+		lda xscalered
+		sta yscalered
+
 		rts
 
 calcgreenoffsets
@@ -765,6 +773,9 @@ calcgreenoffsets
 		lsr
 		sta xscalegreen
 
+		lda xscalegreen
+		sta yscalegreen
+
 		rts
 
 calcblueoffsets
@@ -789,10 +800,14 @@ calcblueoffsets
 		clc					; calculate blue x scale
 		lda frame
 		asl
+		adc #128+64
 		tay
 		lda sine,y
 		lsr
 		sta xscaleblue
+
+		lda xscaleblue
+		sta yscaleblue
 
 		rts
 
@@ -859,19 +874,33 @@ calctab_blue_horizontal
 
 calctab_red_vertical		
 
+		lda #0
+		sta yscaletmplo
+
 		ldx #0
-:
+ctrv_loop
+		ldy #2
+
 		clc
-		lda tab_rl1+0,x
-		adc #2
+		lda yscaletmplo
+		adc yscalered
+		sta yscaletmplo
+		bcc :+
+		tya
+		asl
+		tay
+
+:		tya
+		clc
+		adc tab_rl1+0,x
 		sta tab_rl1+1,x
 		lda tab_rl2+0,x
 		adc #0
 		sta tab_rl2+1,x
 
+		tya
 		clc
-		lda tab_rr1+0,x
-		adc #2
+		adc tab_rr1+0,x
 		sta tab_rr1+1,x
 		lda tab_rr2+0,x
 		adc #0
@@ -879,25 +908,39 @@ calctab_red_vertical
 
 		inx
 		cpx #199
-		bne :-
+		bne ctrv_loop
 
 		rts
 
 calctab_green_vertical		
 
+		lda #0
+		sta yscaletmplo
+
 		ldx #0
-:
+ctgv_loop
+		ldy #2
+
 		clc
-		lda tab_gl1+0,x
-		adc #2
+		lda yscaletmplo
+		adc yscalegreen
+		sta yscaletmplo
+		bcc :+
+		tya
+		asl
+		tay
+
+:		tya
+		clc
+		adc tab_gl1+0,x
 		sta tab_gl1+1,x
 		lda tab_gl2+0,x
 		adc #0
 		sta tab_gl2+1,x
 
+		tya
 		clc
-		lda tab_gr1+0,x
-		adc #2
+		adc tab_gr1+0,x
 		sta tab_gr1+1,x
 		lda tab_gr2+0,x
 		adc #0
@@ -905,25 +948,39 @@ calctab_green_vertical
 
 		inx
 		cpx #199
-		bne :-
+		bne ctgv_loop
 
 		rts
 
 calctab_blue_vertical		
 
+		lda #0
+		sta yscaletmplo
+
 		ldx #0
-:
+ctbv_loop
+		ldy #2
+
 		clc
-		lda tab_bl1+0,x
-		adc #2
+		lda yscaletmplo
+		adc yscaleblue
+		sta yscaletmplo
+		bcc :+
+		tya
+		asl
+		tay
+
+:		tya
+		clc
+		adc tab_bl1+0,x
 		sta tab_bl1+1,x
 		lda tab_bl2+0,x
 		adc #0
 		sta tab_bl2+1,x
 
+		tya
 		clc
-		lda tab_br1+0,x
-		adc #2
+		adc tab_br1+0,x
 		sta tab_br1+1,x
 		lda tab_br2+0,x
 		adc #0
@@ -931,7 +988,7 @@ calctab_blue_vertical
 
 		inx
 		cpx #199
-		bne :-
+		bne ctbv_loop
 
 		rts
 
