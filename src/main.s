@@ -599,8 +599,8 @@ ir_br		.word $0000										; src
 
 		inc frame
 
-		lda #$80
-		sta $d020
+		;lda #$80
+		;sta $d020
 
 		jsr calcredoffsets
 		jsr calctab_red_horizontal
@@ -617,8 +617,8 @@ ir_br		.word $0000										; src
 		jsr calctab_blue_vertical
 		jsr setfirstlinebluevalues
 
-		lda #$00
-		sta $d020
+		;lda #$00
+		;sta $d020
 
 		plz
 		ply
